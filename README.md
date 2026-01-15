@@ -26,7 +26,7 @@ make install        # через Makefile
 # Запуск
 poetry run project  # через poetry
 make project        # через Makefile
-make run
+make run            # то же самое что make project
 ```
 ### Дополнительные команды Makefile
 
@@ -39,7 +39,7 @@ make run
 - `make publish` - Публикация пакета в репозиторий (если настроено)
 
 ### Предварительные требования
-- Python 3.8+
+- Python 3.12+
 - Poetry (менеджер зависимостей)
 
 ## Структура проекта
@@ -53,7 +53,6 @@ finalproject_mishra_nod/
 ├── .gitignore
 └── docs/
 ```
-
 
 ## Поддерживаемые валюты
 

@@ -1,19 +1,19 @@
 .PHONY: install project build publish package-install lint
 
 install:
-	poetry install
+	poetry install --no-root
 
 project:
-	poetry run project
+	python3 __main__.py  # ← ИЗМЕНИЛИ python на python3
 
 build:
-	poetry build
+	@echo "Сборка пакета отключена (простая структура)"
 
 publish:
-	poetry publish --dry-run
+	@echo "Публикация отключена"
 
 package-install:
-	python3 -m pip install dist/*.whl
+	@echo "Установка пакета отключена"
 
 lint:
 	poetry run ruff check .
@@ -22,9 +22,10 @@ test:
 	poetry run pytest tests/ -v
 
 clean:
-	rm -rf dist build
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
 format:
 	poetry run ruff format .
+
+run: project
