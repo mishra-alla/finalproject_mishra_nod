@@ -15,7 +15,6 @@
 
 ## Установка
 ```
-bash
 # Клонирование репозитория
 git clone <your-repo-url>
 cd project2_Mishra_Alla
@@ -24,7 +23,7 @@ cd project2_Mishra_Alla
 poetry install      # через poetry
 make install        # через Makefile
 
-## Запуск
+# Запуск
 poetry run project  # через poetry
 make project        # через Makefile
 make run
@@ -44,7 +43,7 @@ make run
 - Poetry (менеджер зависимостей)
 
 ## Структура проекта
-
+```
 finalproject_mishra_nod/
 ├── src/
 │   └── finalproject_mishra_nod/
@@ -55,6 +54,7 @@ finalproject_mishra_nod/
 ├── pyproject.toml
 ├── Makefile
 └── README.md
+```
 
 ## Поддерживаемые валюты
 
@@ -67,8 +67,7 @@ BTC (Bitcoin), ETH (Ethereum), LTC (Litecoin), ADA (Cardano)
 ## Команды
 
 ### Основные операции
-```
-bash
+```bash
 # Регистрация
 register --username <username> --password <password>
 
@@ -89,8 +88,7 @@ get-rate --from <currency> --to <currency>
 ```
 
 ### Работа с курсами
-```
-bash
+```bash
 # Обновление всех курсов
 update-rates
 
@@ -108,8 +106,7 @@ list-currencies
 ```
 
 ### Примеры использования
-```
-bash
+```bash
 # Полный цикл работы
 register --username alice --password 1234
 login --username alice --password 1234
