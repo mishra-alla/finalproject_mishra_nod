@@ -45,16 +45,15 @@ make run
 ## Структура проекта
 ```
 finalproject_mishra_nod/
-├── src/
-│   └── finalproject_mishra_nod/
-│       ├── __init__.py
-│       └── __main__.py
-├── tests/
-├── docs/
+├── __init__.py
+├── __main__.py
 ├── pyproject.toml
 ├── Makefile
-└── README.md
+├── README.md
+├── .gitignore
+└── docs/
 ```
+
 
 ## Поддерживаемые валюты
 
