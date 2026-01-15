@@ -1,19 +1,10 @@
 .PHONY: install project build publish package-install lint
 
 install:
-	poetry install --no-root
+	poetry install --no-root  # Только зависимости, без установки проекта
 
 project:
-	python3 __main__.py  # ← ИЗМЕНИЛИ python на python3
-
-build:
-	@echo "Сборка пакета отключена (простая структура)"
-
-publish:
-	@echo "Публикация отключена"
-
-package-install:
-	@echo "Установка пакета отключена"
+	poetry run python __main__.py  # Запуск напрямую
 
 lint:
 	poetry run ruff check .

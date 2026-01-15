@@ -8,9 +8,14 @@ def main() -> None:
     print(
         "Добро пожаловать в платформу для отслеживания и симуляции торговли валютами!"
     )
+    print("+Poetry настроен")
+    print("+PrettyTable установлен")
+    print("+Запуск работает напрямую через Python")
     print("Приложение находится в разработке...")
-    print("Используйте 'make project' для запуска или 'poetry run project'")
-
+    print("Команды:")
+    print("  make project    - запуск приложения")
+    print("  make test       - запуск тестов")
+    print("  make lint       - проверка кода")
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,10 @@
 [tool.poetry]
 name = "finalproject_mishra_nod"
 version = "0.1.0"
-description = ""
+description = "Platform for tracking and simulating currency trading"
 authors = ["mishra-alla <allasr22@yandex.ru>"]
 readme = "README.md"
+package-mode = false 
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -12,6 +13,13 @@ prettytable = "^3.16.0"
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.11"
 pytest = "^7.4.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+project = "__main__:main"
 
 [tool.ruff]
 line-length = 88
