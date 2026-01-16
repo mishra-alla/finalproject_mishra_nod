@@ -17,5 +17,6 @@ def main() -> None:
     print("  make test       - запуск тестов")
     print("  make lint       - проверка кода")
 
+
 if __name__ == "__main__":
     main()
