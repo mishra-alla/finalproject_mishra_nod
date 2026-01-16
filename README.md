@@ -46,13 +46,26 @@ make run            # то же самое что make project
 ## Структура проекта
 ```
 finalproject_mishra_nod/
-├── __init__.py
-├── __main__.py
-├── pyproject.toml
-├── Makefile
-├── README.md
-├── .gitignore
-└── docs/
+├── data/
+│   ├── users.json          # JSON - пользователи
+│   ├── portfolios.json     # JSON - портфели  
+│   └── rates.json          # JSON - курсы
+├── valutatrade_hub/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── models.py       # User, Wallet, Portfolio
+│   │   ├── utils.py        # DataManager, ExchangeRateService
+│   │   └── usecases.py     # UserManager, PortfolioManager
+│   └── cli/
+│       ├── __init__.py
+│       └── interface.py    # CLIInterface со всеми командами
+├── main.py                 # Точка входа
+├── Makefile                # Автоматизация
+├── pyproject.toml          # Настройка Poetry
+├── README.md               # Документация
+├── .gitignore             # Игнорирование ненужных файлов
+└── poetry.lock            # Фиксация версий
 ```
 
 ## Поддерживаемые валюты
