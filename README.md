@@ -80,38 +80,31 @@ BTC (Bitcoin), ETH (Ethereum), LTC (Litecoin), ADA (Cardano)
 ### Основные операции
 ```bash
 # Регистрация
-register --username <username> --password <password>
-
+register --username <имя> --password <пароль>
 # Вход в систему
-login --username <username> --password <password>
-
+login --username <имя> --password <пароль>
 # Просмотр портфеля
-show-portfolio [--base <currency>]
-
+show-portfolio [--base <валюта>]
 # Покупка валюты
-buy --currency <code> --amount <amount>
-
+buy --currency <код> --amount <сумма>
 # Продажа валюты
-sell --currency <code> --amount <amount>
-
+sell --currency <код> --amount <сумма>
 # Получение курса
-get-rate --from <currency> --to <currency>
+get-rate --from <валюта> --to <валюта>
+# Просмотр информации кошелька пользователя
+show-portfolio [--base <валюта>]
 ```
 
 ### Работа с курсами
 ```bash
 # Обновление всех курсов
 update-rates
-
 # Обновление только криптовалют
 update-rates --source coingecko
-
 # Обновление только фиатных валют  
 update-rates --source exchangerate
-
 # Просмотр кэшированных курсов
 show-rates [--currency <code>] [--top <N>] [--base <currency>]
-
 # Список поддерживаемых валют
 list-currencies
 ```
@@ -119,14 +112,13 @@ list-currencies
 ### Примеры использования
 ```bash
 # Полный цикл работы
-register --username alice --password 1234
-login --username alice --password 1234
-update-rates
-buy --currency BTC --amount 0.01
-buy --currency EUR --amount 100
+register --username Иван --password 7890
+buy --currency BTC --amount 0.05
+get-rate --from USD --to BTC
 show-portfolio
-sell --currency BTC --amount 0.005
-show-portfolio --base EUR
+buy --currency USD --amount 200
+buy --currency EUR --amount 500
+show-portfolio --base USD
 Запись сеанса работы
 ```
 
