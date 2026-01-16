@@ -24,8 +24,7 @@ poetry install      # через poetry
 make install        # через Makefile
 
 # Запуск
-poetry run python __main__.py  # Запуск напрямую
-poetry run project  # через poetry (в разработке)
+poetry run project  # через poetry
 make project        # через Makefile
 make run            # то же самое что make project
 ```
