@@ -197,11 +197,11 @@ class CLIInterface:
         print("  help")
         print("  exit")
         print("\nПримеры:")
-        print("  register --username alice --password 1234")
-        print("  buy --currency BTC --amount 0.05")
+        print("  register --username Иван --password 7890")
+        print("  buy --currency USD --amount 200")
         print("  get-rate --from USD --to BTC")
-        print("  show-portfolio --base BTC")
         print("  show-portfolio")
+        print("  show-portfolio --base USD")
 
     def update_rates(self) -> None:
         """Обновляет курсы валют."""
