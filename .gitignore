@@ -63,3 +63,4 @@ valutatrade.log
 
 # Poetry
 poetry.lock__main__.py
+tests/
