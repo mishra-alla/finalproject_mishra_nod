@@ -47,15 +47,16 @@ make run            # то же самое что make project
 finalproject_mishra_nod/
 ├── data/
 │   ├── users.json              # JSON - пользователи
-│   ├── portfolios.json         # JSON - портфели  
+│   ├── portfolios.json         # JSON - портфели
 │   ├── rates.json              # Текущие курсы от API
 │   └── exchange_rates.json     # Исторические данные
 ├── valutatrade_hub/
 │   ├── parser_service/         # парсер валют
 │   │   ├── __init__.py
-│   │   ├── config.py           # Конфигурация (упрощенная)
-│   │   ├── api_clients.py      # Функции для API
-│   │   └── updater.py          # Основная логика
+│   │   ├── config.py           # Конфигурация с dataclass
+│   │   ├── api_clients.py      # CoinGecko и ExchangeRate-API
+│   │   ├── storage.py           # Хранение исторических данных 
+│   │   └── updater.py          # Основной модуль обновления
 │   ├── core/
 │   │   ├── currencies.py       # Иерархия валют
 │   │   ├── exceptions.py       # Пользовательские исключения
@@ -66,7 +67,7 @@ finalproject_mishra_nod/
 │   │   ├── settings.py         # Singleton SettingsLoader
 │   │   └── database.py         # Singleton DatabaseManager
 │   ├── cli/
-│   │   └── interface.py        # CLI с новыми командами 
+│   │   └── interface.py        # CLI с новыми командами
 │   ├── logging_config.py       # Настройка логов
 │   └── decorators.py           # @log_action
 ├── main.py                     # Точка входа
@@ -75,7 +76,9 @@ finalproject_mishra_nod/
 ├── README.md                   # Документация
 ├── .gitignore                  # Игнорирование ненужных файлов
 ├── valutatrade.log             # Файл логов
-└── poetry.lock                 # Фиксация версий
+├── poetry.lock                 # Фиксация версий
+└── data/                       # НЕ в коммите (.gitignore)
+    ├── *.json                  # Генерируются при работе
 ```
 
 ## Поддерживаемые валюты
