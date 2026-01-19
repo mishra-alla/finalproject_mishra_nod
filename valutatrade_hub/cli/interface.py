@@ -15,16 +15,20 @@ from valutatrade_hub.core.exceptions import (
 )
 from valutatrade_hub.core.models import User
 from valutatrade_hub.core.usecases import PortfolioManager, UserManager
-from valutatrade_hub.infra.database import DatabaseManager
+
+from valutatrade_hub.parser_service.updater import update_rates, load_current_rates
 
 
 class CLIInterface:
-    """Интерфейс командной строки."""
+    """Интерфейс командной строки"""
 
     def __init__(self):
         self.user_manager = UserManager()
         self.portfolio_manager = PortfolioManager()
         self.current_user: Optional[User] = None
+        # Инициализация парсера
+        # self.rates_updater = RatesUpdater()
+        # self.rates_storage = RatesStorage(ParserConfig())
 
     def register(self, username: str, password: str) -> None:
         """Регистрация нового пользователя."""
@@ -126,7 +130,7 @@ class CLIInterface:
 
             print(
                 f"\nПокупка выполнена: {result['amount']:.4f}"
-                    f" {result['currency']} ({result['currency_name']})"
+                f" {result['currency']} ({result['currency_name']})"
             )
 
             if result["rate"]:
@@ -137,7 +141,7 @@ class CLIInterface:
             print("Изменения в портфеле:")
             print(
                 f"  - {result['currency']}: было {result['old_balance']:.4f} -"
-                    f" стало {result['new_balance']:.4f}"
+                f" стало {result['new_balance']:.4f}"
             )
 
         except (CurrencyNotFoundError, ValueError) as e:
@@ -172,7 +176,7 @@ class CLIInterface:
             print("Изменения в портфеле:")
             print(
                 f"  - {result['currency']}: было {result['old_balance']:.4f}"
-                    f" - стало {result['new_balance']:.4f}"
+                f" - стало {result['new_balance']:.4f}"
             )
 
         except (CurrencyNotFoundError, InsufficientFundsError, ValueError) as e:
@@ -190,8 +194,8 @@ class CLIInterface:
             to_currency = to_currency.upper()
 
             # Валидация валют
-            #from_val = from_currency
-            #to_val = to_currency
+            # from_val = from_currency
+            # to_val = to_currency
 
             rate = self.portfolio_manager._get_rate_with_fallback(
                 from_currency, to_currency
@@ -205,7 +209,7 @@ class CLIInterface:
                     reverse_rate = 1.0 / rate
                     print(
                         f"Обратный курс {to_currency} - {from_currency}:"
-                            f" {reverse_rate:.6f}"
+                        f" {reverse_rate:.6f}"
                     )
             else:
                 print(f"Курс {from_currency} - {to_currency} недоступен.")
@@ -220,6 +224,72 @@ class CLIInterface:
         except Exception as e:
             print(f"Ошибка при получении курса: {e}")
 
+    def update_rates(self, source: Optional[str] = None) -> None:
+        """Обновляет курсы валют."""
+        print("Обновление курсов...")
+
+        # Используем функцию напрямую
+        rates = update_rates(source)
+
+        if rates:
+            count = len(rates)
+            print(f"Обновлено {count} курсов")
+
+            # Показываем несколько примеров
+            print("\nПримеры обновленных курсов:")
+            displayed = 0
+            for pair, data in rates.items():
+                if displayed < 3:  # Показываем первые 3
+                    print(f"  {pair}: {data['rate']:.4f} ({data.get('source', '?')})")
+                    displayed += 1
+        else:
+            print("Не удалось обновить курсы")
+
+    def show_rates(
+        self,
+        currency: Optional[str] = None,
+        top: Optional[int] = None,
+        base: str = "USD",
+    ) -> None:
+        """Показывает курсы из кэша"""
+        # Используем функцию напрямую
+        data = load_current_rates()
+
+        if not data.get("pairs"):
+            print("Кэш курсов пуст. Запустите 'update-rates'")
+            return
+
+        pairs = data["pairs"]
+
+        # Фильтрация
+        if currency:
+            currency = currency.upper()
+            filtered = {
+                k: v
+                for k, v in pairs.items()
+                if k.startswith(f"{currency}_") or k.endswith(f"_{currency}")
+            }
+        else:
+            filtered = pairs
+
+        # Сортировка
+        sorted_pairs = sorted(
+            filtered.items(), key=lambda x: x[1]["rate"], reverse=True
+        )
+
+        # Ограничение
+        if top:
+            sorted_pairs = sorted_pairs[:top]
+
+        # Вывод
+        print(f"Курсы (обновлено: {data.get('last_refresh', 'неизвестно')}):")
+        print("-" * 50)
+
+        for pair, info in sorted_pairs:
+            print(f"{pair:10} {info['rate']:10.4f} ({info.get('source', '?')})")
+
+        print(f"Всего: {len(sorted_pairs)} курсов")
+
     def _print_help(self) -> None:
         """Выводит справку по командам"""
         print("\nДоступные команды:")
@@ -229,58 +299,22 @@ class CLIInterface:
         print("  buy --currency <код> --amount <сумма>")
         print("  sell --currency <код> --amount <сумма>")
         print("  get-rate --from <валюта> --to <валюта>")
-        print("  update-rates")
+        print("  update-rates [--source <coingecko|exchangerate>]")
+        print("  show-rates [--currency <код>] [--top <N>] [--base <валюта>]")
         print("  list-currencies")
         print("  help")
         print("  exit")
         print("\nПримеры:")
         print("  register --username Иван --password 7890")
+        print("  login --username Иван --password 7890")
         print("  buy --currency USD --amount 200")
         print("  get-rate --from USD --to BTC")
+        print("  get-rate --from BTC --to RUS")
+        print("  sell --currency RUS --amount 1000")
+        print("  update-rates --source exchangerate")
+        print("  show-rates --top 5")
         print("  show-portfolio")
         print("  show-portfolio --base USD")
-
-    def update_rates(self) -> None:
-        """Обновляет курсы валют."""
-        try:
-            # Демонстрационные курсы
-            demo_rates = {
-                "pairs": {
-                    "BTC_USD": {
-                        "rate": 59337.21,
-                        "source": "demo",
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                    "EUR_USD": {
-                        "rate": 1.0786,
-                        "source": "demo",
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                    "RUB_USD": {
-                        "rate": 0.01016,
-                        "source": "demo",
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                    "ETH_USD": {
-                        "rate": 3720.00,
-                        "source": "demo",
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                    "USD_USD": {
-                        "rate": 1.0,
-                        "source": "demo",
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                },
-                "last_refresh": datetime.now().isoformat(),
-            }
-
-            db = DatabaseManager()
-            db.save("rates.json", demo_rates)
-            print("Курсы обновлены успешно!")
-
-        except Exception as e:
-            print(f"Ошибка при обновлении курсов: {e}")
 
     def list_currencies(self) -> None:
         """Список поддерживаемых валют"""
@@ -290,29 +324,24 @@ class CLIInterface:
             if not currencies:
                 print("Нет доступных валют")
                 return
-
             print("\nПоддерживаемые валюты:")
-            print("=" * 60)
-
+            print("-" * 60)
             for code, currency in currencies.items():
                 print(f"  {currency.get_display_info()}")
-
-            print("=" * 60)
+            print("-" * 60)
             print(f"Всего: {len(currencies)} валют")
 
         except Exception as e:
             print(f"Ошибка при получении списка валют: {e}")
 
     def _parse_command(self, user_input: str) -> tuple:
-        """Парсит введенную команду."""
+        """Парсит введенную команду"""
         try:
             parts = shlex.split(user_input)
             if not parts:
                 return None, None
-
             command = parts[0]
             args = {}
-
             i = 1
             while i < len(parts):
                 if parts[i].startswith("--"):
@@ -325,9 +354,7 @@ class CLIInterface:
                         i += 1
                 else:
                     i += 1
-
             return command, args
-
         except Exception:
             return None, None
 
@@ -409,6 +436,16 @@ class CLIInterface:
                 elif command == "list-currencies":
                     self.list_currencies()
 
+                elif command == "update-rates":
+                    source = args.get("source")
+                    self.update_rates(source)
+
+                elif command == "show-rates":
+                    currency = args.get("currency")
+                    top = int(args.get("top")) if args.get("top") else None
+                    base = args.get("base", "USD")
+                    self.show_rates(currency, top, base)
+
                 else:
                     print(f"Неизвестная команда: {command}")
                     print("Введите 'help' для списка команд")
@@ -418,3 +455,9 @@ class CLIInterface:
                 break
             except Exception as e:
                 print(f"Неожиданная ошибка: {e}")
+
+    def _get_logger(self):
+        """Возвращает логгер."""
+        import logging
+
+        return logging.getLogger(__name__)

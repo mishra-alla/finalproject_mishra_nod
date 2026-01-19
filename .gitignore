@@ -56,3 +56,10 @@ tmp/
 test_*.py
 demo*.py
 *.cast
+
+# Временные файлы
+data/*.json
+valutatrade.log
+
+# Poetry
+poetry.lock

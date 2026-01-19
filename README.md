@@ -46,33 +46,36 @@ make run            # то же самое что make project
 ```
 finalproject_mishra_nod/
 ├── data/
-│   ├── users.json          # JSON - пользователи
-│   ├── portfolios.json     # JSON - портфели  
-│   └── rates.json          # JSON - курсы
+│   ├── users.json              # JSON - пользователи
+│   ├── portfolios.json         # JSON - портфели  
+│   ├── rates.json              # Текущие курсы от API
+│   └── exchange_rates.json     # Исторические данные
 ├── valutatrade_hub/
-│   ├── __init__.py
-│   ├── logging_config.py          # Настройка логов ✓
-│   ├── decorators.py              # @log_action
+│   ├── parser_service/         # парсер валют
+│   │   ├── __init__.py
+│   │   ├── config.py           # Конфигурация (упрощенная)
+│   │   ├── api_clients.py      # Функции для API
+│   │   └── updater.py          # Основная логика
 │   ├── core/
-│   │   ├── __init__.py
-│   │   ├── currencies.py          # Currency, FiatCurrency, CryptoCurrency
-│   │   ├── exceptions.py          # Исключения
-│   │   ├── models.py       # User, Wallet, Portfolio
-│   │   ├── utils.py        # DataManager, ExchangeRateService
-│   │   └── usecases.py     # UserManager, PortfolioManager, С декораторами
+│   │   ├── currencies.py       # Иерархия валют
+│   │   ├── exceptions.py       # Пользовательские исключения
+│   │   ├── models.py           # User, Wallet, Portfolio
+│   │   ├── usecases.py         # Бизнес-логика с декораторами
+│   │   └── utils.py            # Вспомогательные функции
 │   ├── infra/
-│   │   ├── __init__.py
-│   │   ├── settings.py            # Singleton SettingsLoader
-│   │   └── database.py            # Singleton DatabaseManager
-│   └── cli/
-│       ├── __init__.py
-│       └── interface.py    # CLIInterface, С обработкой исключений
-├── main.py                 # Точка входа
-├── Makefile                # Автоматизация
-├── pyproject.toml          # Настройка Poetry
-├── README.md               # Документация
-├── .gitignore             # Игнорирование ненужных файлов
-└── poetry.lock            # Фиксация версий
+│   │   ├── settings.py         # Singleton SettingsLoader
+│   │   └── database.py         # Singleton DatabaseManager
+│   ├── cli/
+│   │   └── interface.py        # CLI с новыми командами 
+│   ├── logging_config.py       # Настройка логов
+│   └── decorators.py           # @log_action
+├── main.py                     # Точка входа
+├── Makefile                    # Автоматизация
+├── pyproject.toml              # Настройка Poetry
+├── README.md                   # Документация
+├── .gitignore                  # Игнорирование ненужных файлов
+├── valutatrade.log             # Файл логов
+└── poetry.lock                 # Фиксация версий
 ```
 
 ## Поддерживаемые валюты
@@ -105,14 +108,12 @@ show-portfolio [--base <валюта>]
 
 ### Работа с курсами
 ```bash
-# Обновление всех курсов
-update-rates
-# Обновление только криптовалют
-update-rates --source coingecko
-# Обновление только фиатных валют  
-update-rates --source exchangerate
+# курсы  одной валюты отгносительно другой
+get-rate --from <валюта> --to <валюта>
+# Обновление курсов валют [крипто/фиатной]
+update-rates [--source <coingecko|exchangerate>]
 # Просмотр кэшированных курсов
-show-rates [--currency <code>] [--top <N>] [--base <currency>]
+show-rates [--currency <код>] [--top <N>] [--base <валюта>]
 # Список поддерживаемых валют
 list-currencies
 ```

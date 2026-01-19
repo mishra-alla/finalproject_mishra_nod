@@ -28,6 +28,7 @@ init-data:
 	echo '[]' > data/users.json
 	echo '[]' > data/portfolios.json
 	echo '{"pairs": {}, "last_refresh": null}' > data/rates.json
+	echo '[]' > data/exchange_rates.json
 	@echo "Data files initialized"
 
 reset-data:
@@ -41,7 +42,7 @@ demo:
 	@echo "Demo data ready"
 
 logs:
-	@echo "=== Последние логи ==="
+	@echo "--- Последние логи ---"
 	tail -20 valutatrade.log 2>/dev/null || echo "Файл логов не найден"
 
 clear-logs:

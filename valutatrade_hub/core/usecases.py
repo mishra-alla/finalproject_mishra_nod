@@ -10,7 +10,7 @@ from ..decorators import log_action
 from ..infra.settings import SettingsLoader
 from ..infra.database import DatabaseManager
 from .currencies import get_currency
-from .exceptions import ApiRequestError, CurrencyNotFoundError, InsufficientFundsError
+from .exceptions import CurrencyNotFoundError, InsufficientFundsError
 from .models import Portfolio, User
 
 
@@ -216,16 +216,34 @@ class PortfolioManager:
     ) -> Optional[float]:
         """Получает курс с обработкой ошибок"""
         try:
-            # Здесь в будущем будет реальный сервис курсов
+            # Пытаемся загрузить актуальные курсы из rates.json
+            import json
+
+            try:
+                with open("data/rates.json", "r", encoding="utf-8") as f:
+                    rates_data = json.load(f)
+
+                rate_key = f"{from_currency}_{to_currency}"
+                if rate_key in rates_data.get("pairs", {}):
+                    return rates_data["pairs"][rate_key]["rate"]
+
+                # Пробуем обратный курс
+                reverse_key = f"{to_currency}_{from_currency}"
+                if reverse_key in rates_data.get("pairs", {}):
+                    return 1.0 / rates_data["pairs"][reverse_key]["rate"]
+
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass  # Файла нет, используем демо-данные ниже
+
+            # Демо-данные как fallback
             demo_rates = {
                 "BTC_USD": 59337.21,
+                "ETH_USD": 3720.00,
                 "EUR_USD": 1.0786,
                 "RUB_USD": 0.01016,
-                "ETH_USD": 3720.00,
                 "USD_USD": 1.0,
             }
 
-            rate_key = f"{from_currency}_{to_currency}"
             if rate_key in demo_rates:
                 return demo_rates[rate_key]
 
@@ -236,7 +254,8 @@ class PortfolioManager:
             return None
 
         except Exception as e:
-            raise ApiRequestError(str(e))
+            print(f"Ошибка получения курса: {e}")
+            return None
 
     @staticmethod
     def _validate_currency_code(currency_code: str) -> bool:
