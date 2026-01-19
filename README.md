@@ -51,14 +51,22 @@ finalproject_mishra_nod/
 │   └── rates.json          # JSON - курсы
 ├── valutatrade_hub/
 │   ├── __init__.py
+│   ├── logging_config.py          # Настройка логов ✓
+│   ├── decorators.py              # @log_action
 │   ├── core/
 │   │   ├── __init__.py
+│   │   ├── currencies.py          # Currency, FiatCurrency, CryptoCurrency
+│   │   ├── exceptions.py          # Исключения
 │   │   ├── models.py       # User, Wallet, Portfolio
 │   │   ├── utils.py        # DataManager, ExchangeRateService
-│   │   └── usecases.py     # UserManager, PortfolioManager
+│   │   └── usecases.py     # UserManager, PortfolioManager, С декораторами
+│   ├── infra/
+│   │   ├── __init__.py
+│   │   ├── settings.py            # Singleton SettingsLoader
+│   │   └── database.py            # Singleton DatabaseManager
 │   └── cli/
 │       ├── __init__.py
-│       └── interface.py    # CLIInterface со всеми командами
+│       └── interface.py    # CLIInterface, С обработкой исключений
 ├── main.py                 # Точка входа
 ├── Makefile                # Автоматизация
 ├── pyproject.toml          # Настройка Poetry

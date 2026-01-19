@@ -1,7 +1,7 @@
 .PHONY: install project build publish package-install lint
 
 install:
-	poetry install --no-root
+	poetry install
 
 project:
 	poetry run project
@@ -16,6 +16,7 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	rm -rf .pytest_cache
+	rm -rf valutatrade.log
 
 format:
 	poetry run ruff format .
@@ -38,3 +39,12 @@ demo:
 	@echo "Setting up demo data..."
 	make init-data
 	@echo "Demo data ready"
+
+logs:
+	@echo "=== Последние логи ==="
+	tail -20 valutatrade.log 2>/dev/null || echo "Файл логов не найден"
+
+clear-logs:
+	@echo "Очистка логов..."
+	> valutatrade.log
+	@echo "Логи очищены"

@@ -1,5 +1,5 @@
 """
-Командный интерфейс приложения
+Командный интерфейс приложения.
 """
 
 import shlex
@@ -7,19 +7,23 @@ from datetime import datetime
 from typing import Optional
 
 from prettytable import PrettyTable
+from valutatrade_hub.core.currencies import get_all_currencies
+from valutatrade_hub.core.exceptions import (
+    ApiRequestError,
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+)
 from valutatrade_hub.core.models import User
 from valutatrade_hub.core.usecases import PortfolioManager, UserManager
-from valutatrade_hub.core.utils import DataManager, ExchangeRateService
+from valutatrade_hub.infra.database import DatabaseManager
 
 
 class CLIInterface:
-    """Интерфейс командной строки"""
+    """Интерфейс командной строки."""
 
     def __init__(self):
-        self.data_manager = DataManager()
-        self.rate_service = ExchangeRateService(self.data_manager)
-        self.user_manager = UserManager(self.data_manager)
-        self.portfolio_manager = PortfolioManager(self.data_manager, self.rate_service)
+        self.user_manager = UserManager()
+        self.portfolio_manager = PortfolioManager()
         self.current_user: Optional[User] = None
 
     def register(self, username: str, password: str) -> None:
@@ -34,7 +38,7 @@ class CLIInterface:
             print(f"Ошибка: {e}")
 
     def login(self, username: str, password: str) -> None:
-        """Вход в систему."""
+        """Вход в систему"""
         try:
             self.current_user = self.user_manager.login(username, password)
             print(f"Вы вошли как '{self.current_user.username}'")
@@ -42,7 +46,7 @@ class CLIInterface:
             print(f"Ошибка: {e}")
 
     def show_portfolio(self, base_currency: str = "USD") -> None:
-        """Показывает портфель пользователя."""
+        """Показывает портфель пользователя"""
         if not self.current_user:
             print("Ошибка: Сначала выполните login")
             return
@@ -54,15 +58,14 @@ class CLIInterface:
             base_currency = base_currency.upper()
 
             print(
-                f"\nПортфель пользователя '{self.current_user.username}'\
-                (база: {base_currency}):"
+                f"\nПортфель пользователя '{self.current_user.username}'"
+                f"(база: {base_currency}):"
             )
 
             if not portfolio.wallets:
                 print("  Портфель пуст")
                 return
 
-            # Используем PrettyTable для красивого вывода
             table = PrettyTable()
             table.field_names = ["Валюта", "Баланс", f"В {base_currency}", "Курс"]
             table.align["Валюта"] = "l"
@@ -79,12 +82,18 @@ class CLIInterface:
                     value = balance
                     rate = 1.0
                 else:
-                    rate = self.rate_service.get_rate(currency_code, base_currency)
-                    if rate:
-                        value = balance * rate
-                    else:
+                    try:
+                        rate = self.portfolio_manager._get_rate_with_fallback(
+                            currency_code, base_currency
+                        )
+                        if rate:
+                            value = balance * rate
+                        else:
+                            value = 0
+                            rate = "N/A"
+                    except ApiRequestError:
                         value = 0
-                        rate = "N/A"
+                        rate = "API Error"
 
                 table.add_row(
                     [
@@ -115,7 +124,10 @@ class CLIInterface:
                 self.current_user.user_id, currency, amount
             )
 
-            print(f"\nПокупка выполнена: {result['amount']:.4f} {result['currency']}")
+            print(
+                f"\nПокупка выполнена: {result['amount']:.4f}"
+                    f" {result['currency']} ({result['currency_name']})"
+            )
 
             if result["rate"]:
                 print(f"По курсу: {result['rate']:.2f} USD/{result['currency']}")
@@ -124,12 +136,17 @@ class CLIInterface:
 
             print("Изменения в портфеле:")
             print(
-                f"  - {result['currency']}: было {result['old_balance']:.4f}"
-                    f"стало {result['new_balance']:.4f}"
+                f"  - {result['currency']}: было {result['old_balance']:.4f} -"
+                    f" стало {result['new_balance']:.4f}"
             )
 
-        except ValueError as e:
+        except (CurrencyNotFoundError, ValueError) as e:
             print(f"Ошибка: {e}")
+            if isinstance(e, CurrencyNotFoundError):
+                print("Используйте 'list-currencies' для списка доступных валют")
+        except ApiRequestError as e:
+            print(f"Ошибка API: {e}")
+            print("Повторите попытку позже")
 
     def sell(self, currency: str, amount: float) -> None:
         """Продажа валюты."""
@@ -142,7 +159,10 @@ class CLIInterface:
                 self.current_user.user_id, currency, amount
             )
 
-            print(f"\nПродажа выполнена: {result['amount']:.4f} {result['currency']}")
+            print(
+                f"\nПродажа выполнена: {result['amount']:.4f} "
+                f"{result['currency']} ({result['currency_name']})"
+            )
 
             if result["rate"]:
                 print(f"По курсу: {result['rate']:.2f} USD/{result['currency']}")
@@ -152,35 +172,51 @@ class CLIInterface:
             print("Изменения в портфеле:")
             print(
                 f"  - {result['currency']}: было {result['old_balance']:.4f}"
-                f" - стало {result['new_balance']:.4f}"
+                    f" - стало {result['new_balance']:.4f}"
             )
 
-        except ValueError as e:
+        except (CurrencyNotFoundError, InsufficientFundsError, ValueError) as e:
             print(f"Ошибка: {e}")
+            if isinstance(e, CurrencyNotFoundError):
+                print("Используйте 'list-currencies' для списка доступных валют")
+        except ApiRequestError as e:
+            print(f"Ошибка API: {e}")
+            print("Повторите попытку позже")
 
     def get_rate(self, from_currency: str, to_currency: str) -> None:
         """Получение курса валюты"""
         try:
-            rate = self.rate_service.get_rate(from_currency, to_currency)
+            from_currency = from_currency.upper()
+            to_currency = to_currency.upper()
+
+            # Валидация валют
+            #from_val = from_currency
+            #to_val = to_currency
+
+            rate = self.portfolio_manager._get_rate_with_fallback(
+                from_currency, to_currency
+            )
 
             if rate:
-                rates = self.rate_service.get_rates()
-                updated_at = rates.get("last_refresh", "неизвестно")
-
-                print(f"Курс {from_currency.upper()} - {to_currency.upper()}:"
-                        f" {rate:.6f}")
-                print(f"Обновлено: {updated_at}")
+                print(f"Курс {from_currency} - {to_currency}: {rate:.6f}")
+                print(f"Обновлено: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
                 if rate != 0:
                     reverse_rate = 1.0 / rate
                     print(
-                        f"Обратный курс {to_currency.upper()}"
-                        f"- {from_currency.upper()}: {reverse_rate:.6f}"
+                        f"Обратный курс {to_currency} - {from_currency}:"
+                            f" {reverse_rate:.6f}"
                     )
             else:
-                print(f"Курс {from_currency.upper()} - {to_currency.upper()}"
-                    f" недоступен.")
+                print(f"Курс {from_currency} - {to_currency} недоступен.")
+                print("Проверьте коды валют или повторите позже")
 
+        except CurrencyNotFoundError as e:
+            print(f"Ошибка: {e}")
+            print("Используйте 'list-currencies' для списка доступных валют")
+        except ApiRequestError as e:
+            print(f"Ошибка API: {e}")
+            print("Повторите попытку позже или проверьте соединение")
         except Exception as e:
             print(f"Ошибка при получении курса: {e}")
 
@@ -194,6 +230,7 @@ class CLIInterface:
         print("  sell --currency <код> --amount <сумма>")
         print("  get-rate --from <валюта> --to <валюта>")
         print("  update-rates")
+        print("  list-currencies")
         print("  help")
         print("  exit")
         print("\nПримеры:")
@@ -229,17 +266,45 @@ class CLIInterface:
                         "source": "demo",
                         "updated_at": datetime.now().isoformat(),
                     },
-                }
+                    "USD_USD": {
+                        "rate": 1.0,
+                        "source": "demo",
+                        "updated_at": datetime.now().isoformat(),
+                    },
+                },
+                "last_refresh": datetime.now().isoformat(),
             }
 
-            self.rate_service.update_rates(demo_rates)
+            db = DatabaseManager()
+            db.save("rates.json", demo_rates)
             print("Курсы обновлены успешно!")
 
         except Exception as e:
             print(f"Ошибка при обновлении курсов: {e}")
 
+    def list_currencies(self) -> None:
+        """Список поддерживаемых валют"""
+        try:
+            currencies = get_all_currencies()
+
+            if not currencies:
+                print("Нет доступных валют")
+                return
+
+            print("\nПоддерживаемые валюты:")
+            print("=" * 60)
+
+            for code, currency in currencies.items():
+                print(f"  {currency.get_display_info()}")
+
+            print("=" * 60)
+            print(f"Всего: {len(currencies)} валют")
+
+        except Exception as e:
+            print(f"Ошибка при получении списка валют: {e}")
+
     def _parse_command(self, user_input: str) -> tuple:
-        """Парсит введенную команду"""
+        """Парсит введенную команду."""
         try:
             parts = shlex.split(user_input)
             if not parts:
@@ -248,7 +313,6 @@ class CLIInterface:
             command = parts[0]
             args = {}
 
-            # Парсим аргументы
             i = 1
             while i < len(parts):
                 if parts[i].startswith("--"):
@@ -272,11 +336,8 @@ class CLIInterface:
         print("\nДобро пожаловать в ValutaTrade Hub!")
         print("Введите 'help' для списка команд или 'exit' для выхода")
 
-        # Импортируем datetime здесь, чтобы избежать циклического импорта
-
         while True:
             try:
-                # Создаем промпт с именем пользователя, если он авторизован
                 prompt = "valutatrade"
                 if self.current_user:
                     prompt = f"valutatrade[{self.current_user.username}]"
@@ -294,14 +355,12 @@ class CLIInterface:
                     self._print_help()
                     continue
 
-                # Парсим команду
                 command, args = self._parse_command(user_input)
 
                 if not command:
                     print("Неизвестная команда. Введите 'help' для справки.")
                     continue
 
-                # Выполняем команду
                 if command == "register":
                     if "username" in args and "password" in args:
                         self.register(args["username"], args["password"])
@@ -346,6 +405,9 @@ class CLIInterface:
 
                 elif command == "update-rates":
                     self.update_rates()
+
+                elif command == "list-currencies":
+                    self.list_currencies()
 
                 else:
                     print(f"Неизвестная команда: {command}")

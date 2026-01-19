@@ -7,9 +7,11 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
+from .exceptions import CurrencyNotFoundError
+
 
 class DataManager:
-    """Менеджер данных для работы с JSON файлами."""
+    """Менеджер данных для работы с JSON файлами"""
 
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
@@ -21,11 +23,11 @@ class DataManager:
             os.makedirs(self.data_dir)
 
     def _get_file_path(self, filename: str) -> str:
-        """Возвращает полный путь к файлу."""
+        """Возвращает полный путь к файлу"""
         return os.path.join(self.data_dir, filename)
 
     def load_json(self, filename: str, default: Any = None) -> Any:
-        """Читает JSON файл и возвращает данные."""
+        """Читает JSON файл и возвращает данные"""
         filepath = self._get_file_path(filename)
         if not os.path.exists(filepath):
             return default if default is not None else []
@@ -37,13 +39,13 @@ class DataManager:
             return default if default is not None else []
 
     def save_json(self, filename: str, data: Any):
-        """Записывает данные в JSON файл."""
+        """Записывает данные в JSON файл"""
         filepath = self._get_file_path(filename)
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
     def get_next_user_id(self) -> int:
-        """Генерирует следующий ID пользователя."""
+        """Генерирует следующий ID пользователя"""
         users = self.load_json("users.json", [])
         if not users:
             return 1
@@ -51,20 +53,20 @@ class DataManager:
 
 
 class ExchangeRateService:
-    """Сервис для работы с курсами валют."""
+    """Сервис для работы с курсами валют"""
 
     def __init__(self, data_manager: DataManager):
         self.data_manager = data_manager
 
     def get_rates(self) -> Dict:
-        """Загружает котировки из rates.json."""
+        """Загружает котировки из rates.json"""
         rates = self.data_manager.load_json("rates.json", {})
         if not rates:
             return {"pairs": {}, "last_refresh": None}
         return rates
 
     def get_rate(self, from_currency: str, to_currency: str) -> float:
-        """Получает обменный курс."""
+        """Получает обменный курс"""
         from_currency = from_currency.upper()
         to_currency = to_currency.upper()
 
@@ -96,7 +98,7 @@ class ExchangeRateService:
         elif reverse_key in demo_rates:
             return 1.0 / demo_rates[reverse_key]
 
-        return None
+        raise CurrencyNotFoundError(f"{from_currency} или {to_currency}")
 
     def is_rates_fresh(self, ttl_seconds: int = 300) -> bool:
         """Проверяет актуальность курсов"""
