@@ -1,9 +1,0 @@
-[
-  {
-    "user_id": 1,
-    "username": "Иван",
-    "hashed_password": "1536541a6342ca55f89b4be3779c82c598d3b72e3f55dd27dd4a647498eee4e2",
-    "salt": "46eb0a212997a2d2",
-    "registration_date": "2026-01-19T10:43:44.019726"
-  }
-]

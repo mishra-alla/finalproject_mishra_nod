@@ -62,4 +62,4 @@ data/*.json
 valutatrade.log
 
 # Poetry
-poetry.lock
+poetry.lock__main__.py
