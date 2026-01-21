@@ -1,195 +1,121 @@
+# valutatrade_hub/parser_service/updater.py
+
 """
-Простой обновлятель курсов.
+Простой обновлятель курсов
 """
 
-import json
+import logging
 from datetime import datetime
-from typing import Optional, Dict
-import requests
+from typing import Dict, Optional
+
+from .config import ParserConfig
+from .api_clients import CoinGeckoClient, ExchangeRateApiClient
+from .storage import RatesStorage
 
 
-def update_rates(source: Optional[str] = None) -> Dict:
-    """
-    Обновляет курсы валют
+class RatesUpdater:
+    """Координатор обновления курсов"""
 
-    Args:
-        source: 'coingecko', 'exchangerate', или None для всех
+    def __init__(self):
+        self.config = ParserConfig()
+        self.storage = RatesStorage(self.config)
+        self.logger = logging.getLogger(__name__)
 
-    Returns:
-        Словарь с курсами
-    """
-    all_rates = {}
+        # Инициализируем клиенты
+        self.coingecko_client = CoinGeckoClient(self.config)
+        self.exchangerate_client = ExchangeRateApiClient(self.config)
 
-    # 1. Пытаемся получить реальные курсы
-    if source in (None, "coingecko"):
-        crypto_rates = fetch_coingecko_rates()
-        if crypto_rates:
-            all_rates.update(crypto_rates)
-            print(" Получены курсы криптовалют")
+    def run_update(self, source: Optional[str] = None) -> Dict:
+        """Запускает обновление курсов"""
+        # Логируем правильный источник
+        if source:
+            self.logger.info(f"Starting rates update (source: {source})")
+        else:
+            self.logger.info("Starting rates update (source: all)")
 
-    if source in (None, "exchangerate"):
-        fiat_rates = fetch_exchangerate_rates()
-        if fiat_rates:
-            all_rates.update(fiat_rates)
-            print(" Получены курсы фиатных валют")
+        all_rates = {}
 
-    # 2. Если не получили реальных данных, используем демо
-    if not all_rates:
-        print("!!! API недоступны, использую демо-данные")
-        all_rates = get_demo_rates()
+        try:
+            # 1. Получаем курсы криптовалют
+            should_fetch_crypto = source in (None, "coingecko")
+            should_fetch_fiat = source in (None, "exchangerate")
 
-    # 3. Сохраняем в rates.json
-    save_rates(all_rates)
+            if should_fetch_crypto:
+                self.logger.info("Fetching crypto rates from CoinGecko...")
+                crypto_rates = self.coingecko_client.fetch_rates()
+                if crypto_rates:
+                    all_rates.update(crypto_rates)
+                    self.logger.info(f"Got {len(crypto_rates)} crypto rates")
+                else:
+                    self.logger.warning("No crypto rates received from CoinGecko")
 
-    # 4. Сохраняем в историю
-    save_to_history(all_rates)
+            if should_fetch_fiat:
+                self.logger.info("Fetching fiat rates from ExchangeRate-API...")
+                fiat_rates = self.exchangerate_client.fetch_rates()
+                if fiat_rates:
+                    all_rates.update(fiat_rates)
+                    self.logger.info(f"Got {len(fiat_rates)} fiat rates")
+                else:
+                    self.logger.warning("No fiat rates received from ExchangeRate-API")
 
-    return all_rates
+            # 2. Если API не вернули данные, используем демо
+            if not all_rates:
+                self.logger.warning("API returned no data, using demo")
+                all_rates = self._get_demo_rates()
 
+            # 3. Сохраняем текущие курсы
+            if all_rates:
+                self.storage.save_current_rates(all_rates)
 
-def fetch_coingecko_rates() -> Dict:
-    """Получает курсы криптовалют от CoinGecko"""
-    try:
-        url = "https://api.coingecko.com/api/v3/simple/price"
-        params = {"ids": "bitcoin,ethereum,solana", "vs_currencies": "usd"}
+                # 4. Сохраняем в историю
+                for rate_key, rate_data in all_rates.items():
+                    from_currency, to_currency = rate_key.split("_")
+                    self.storage.save_historical_record(
+                        from_currency=from_currency,
+                        to_currency=to_currency,
+                        rate=rate_data["rate"],
+                        source=rate_data["source"],
+                        meta=rate_data.get("meta", {}),
+                    )
+                self.logger.info(f"Update complete. Total rates: {len(all_rates)}")
+                return all_rates
+            else:
+                self.logger.error("Failed to get any rates")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Critical update error: {e}")
+            return self._get_demo_rates()
 
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        rates = {}
-        crypto_map = {"bitcoin": "BTC", "ethereum": "ETH", "solana": "SOL"}
-
-        for api_id, code in crypto_map.items():
-            if api_id in data and "usd" in data[api_id]:
-                rate_key = f"{code}_USD"
-                rates[rate_key] = {
-                    "rate": data[api_id]["usd"],
-                    "source": "CoinGecko",
-                    "timestamp": datetime.now().isoformat(),
-                }
-
-        return rates
-
-    except Exception as e:
-        print(f"!!! CoinGecko error: {e}")
-        return {}
-
-
-def fetch_exchangerate_rates() -> Dict:
-    """Получает курсы фиатных валют от ExchangeRate-API"""
-    try:
-        url = "https://v6.exchangerate-api.com/v6/a4be4deebef7c25150f142c8/latest/USD"
-
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        if data.get("result") != "success":
-            print(f"!!! ExchangeRate API error: {data.get('error-type', 'unknown')}")
-            return {}
-
-        rates = {}
-        fiat_currencies = ["EUR", "GBP", "RUB", "CNY", "JPY"]
-
-        for currency in fiat_currencies:
-            if currency in data.get("rates", {}):
-                rate_key = f"{currency}_USD"
-                rates[rate_key] = {
-                    "rate": data["rates"][currency],
-                    "source": "ExchangeRate-API",
-                    "timestamp": datetime.now().isoformat(),
-                }
-
-        # Добавляем USD
-        rates["USD_USD"] = {
-            "rate": 1.0,
-            "source": "ExchangeRate-API",
-            "timestamp": datetime.now().isoformat(),
+    def _get_demo_rates(self) -> Dict:
+        """Возвращает демонстрационные курсы"""
+        demo_rates = {
+            "BTC_USD": {
+                "rate": 59337.21,
+                "source": "Demo",
+                "timestamp": datetime.now().isoformat(),
+                "meta": {"note": "demo_data"},
+            },
+            "ETH_USD": {
+                "rate": 3720.00,
+                "source": "Demo",
+                "timestamp": datetime.now().isoformat(),
+                "meta": {"note": "demo_data"},
+            },
+            "EUR_USD": {
+                "rate": 1.0786,
+                "source": "Demo",
+                "timestamp": datetime.now().isoformat(),
+                "meta": {"note": "demo_data"},
+            },
+            "USD_USD": {
+                "rate": 1.0,
+                "source": "Demo",
+                "timestamp": datetime.now().isoformat(),
+                "meta": {"note": "demo_data"},
+            },
         }
 
-        return rates
+        # Сохраняем демо-данные
+        self.storage.save_current_rates(demo_rates)
 
-    except Exception as e:
-        print(f"!!! ExchangeRate-API error: {e}")
-        return {}
-
-
-def get_demo_rates() -> Dict:
-    """Демонстрационные курсы"""
-    return {
-        "BTC_USD": {
-            "rate": 59337.21,
-            "source": "Demo",
-            "timestamp": datetime.now().isoformat(),
-        },
-        "ETH_USD": {
-            "rate": 3720.00,
-            "source": "Demo",
-            "timestamp": datetime.now().isoformat(),
-        },
-        "EUR_USD": {
-            "rate": 1.0786,
-            "source": "Demo",
-            "timestamp": datetime.now().isoformat(),
-        },
-        "RUB_USD": {
-            "rate": 0.01016,
-            "source": "Demo",
-            "timestamp": datetime.now().isoformat(),
-        },
-        "USD_USD": {
-            "rate": 1.0,
-            "source": "Demo",
-            "timestamp": datetime.now().isoformat(),
-        },
-    }
-
-
-def save_rates(rates: Dict) -> None:
-    """Сохраняет курсы в rates.json"""
-    data = {
-        "pairs": rates,
-        "last_refresh": datetime.now().isoformat(),
-        "source": "ParserService",
-    }
-
-    with open("data/rates.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, default=str)
-
-
-def save_to_history(rates: Dict) -> None:
-    """Сохраняет курсы в историю"""
-    try:
-        # Загружаем существующую историю
-        with open("data/exchange_rates.json", "r", encoding="utf-8") as f:
-            history = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        history = []
-
-    # Добавляем новые записи
-    for pair, data in rates.items():
-        from_curr, to_curr = pair.split("_")
-        history.append(
-            {
-                "pair": pair,
-                "from": from_curr,
-                "to": to_curr,
-                "rate": data["rate"],
-                "source": data["source"],
-                "timestamp": data.get("timestamp", datetime.now().isoformat()),
-            }
-        )
-
-    # Сохраняем обратно
-    with open("data/exchange_rates.json", "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2, default=str)
-
-
-def load_current_rates() -> Dict:
-    """Загружает текущие курсы"""
-    try:
-        with open("data/rates.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"pairs": {}, "last_refresh": None}
+        return demo_rates

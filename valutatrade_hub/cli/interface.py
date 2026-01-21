@@ -1,3 +1,4 @@
+# В valutatrade_hub/cli/interface.py
 """
 Командный интерфейс приложения.
 """
@@ -16,7 +17,10 @@ from valutatrade_hub.core.exceptions import (
 from valutatrade_hub.core.models import User
 from valutatrade_hub.core.usecases import PortfolioManager, UserManager
 
-from valutatrade_hub.parser_service.updater import update_rates, load_current_rates
+from valutatrade_hub.parser_service.updater import RatesUpdater
+from valutatrade_hub.parser_service.storage import RatesStorage
+from valutatrade_hub.parser_service.config import ParserConfig
+# from valutatrade_hub.parser_service.scheduler import RatesScheduler
 
 
 class CLIInterface:
@@ -27,8 +31,8 @@ class CLIInterface:
         self.portfolio_manager = PortfolioManager()
         self.current_user: Optional[User] = None
         # Инициализация парсера
-        # self.rates_updater = RatesUpdater()
-        # self.rates_storage = RatesStorage(ParserConfig())
+        self.rates_updater = RatesUpdater()
+        self.rates_storage = RatesStorage(ParserConfig())
 
     def register(self, username: str, password: str) -> None:
         """Регистрация нового пользователя."""
@@ -225,15 +229,31 @@ class CLIInterface:
             print(f"Ошибка при получении курса: {e}")
 
     def update_rates(self, source: Optional[str] = None) -> None:
-        """Обновляет курсы валют."""
-        print("Обновление курсов...")
+        """Обновляет курсы валют"""
+        # ВАЛИДАЦИЯ источника
+        valid_sources = ["coingecko", "exchangerate"]
 
-        # Используем функцию напрямую
-        rates = update_rates(source)
+        if source:
+            source = source.lower()
+            if source not in valid_sources:
+                print(
+                    f" Неверный источник: '{source}'."
+                    f" Допустимые: {', '.join(valid_sources)}"
+                )
+                print("Использую все источники")
+                source = None
+
+        if source:
+            print(f"Обновление курсов (источник: {source})...")
+        else:
+            print("Обновление курсов (все источники)...")
+
+        # Используем класс RatesUpdater
+        rates = self.rates_updater.run_update(source)
 
         if rates:
             count = len(rates)
-            print(f"Обновлено {count} курсов")
+            print(f" Обновлено {count} курсов")
 
             # Показываем несколько примеров
             print("\nПримеры обновленных курсов:")
@@ -252,15 +272,15 @@ class CLIInterface:
         base: str = "USD",
     ) -> None:
         """Показывает курсы из кэша"""
-        # Используем функцию напрямую
-        data = load_current_rates()
+        # Используем storage
+        # data = load_current_rates()
+        data = self.rates_storage.load_current_rates()
 
         if not data.get("pairs"):
             print("Кэш курсов пуст. Запустите 'update-rates'")
             return
 
         pairs = data["pairs"]
-
         # Фильтрация
         if currency:
             currency = currency.upper()
@@ -271,16 +291,13 @@ class CLIInterface:
             }
         else:
             filtered = pairs
-
         # Сортировка
         sorted_pairs = sorted(
             filtered.items(), key=lambda x: x[1]["rate"], reverse=True
         )
-
         # Ограничение
         if top:
             sorted_pairs = sorted_pairs[:top]
-
         # Вывод
         print(f"Курсы (обновлено: {data.get('last_refresh', 'неизвестно')}):")
         print("-" * 50)
@@ -311,7 +328,7 @@ class CLIInterface:
         print("  get-rate --from USD --to BTC")
         print("  get-rate --from BTC --to RUS")
         print("  sell --currency RUS --amount 1000")
-        print("  update-rates --source exchangerate")
+        print("  update-rates --source coingecko")
         print("  show-rates --top 5")
         print("  show-portfolio")
         print("  show-portfolio --base USD")
@@ -430,9 +447,6 @@ class CLIInterface:
                     else:
                         print("Ошибка: укажите --from и --to")
 
-                elif command == "update-rates":
-                    self.update_rates()
-
                 elif command == "list-currencies":
                     self.list_currencies()
 
@@ -456,8 +470,8 @@ class CLIInterface:
             except Exception as e:
                 print(f"Неожиданная ошибка: {e}")
 
-    def _get_logger(self):
-        """Возвращает логгер."""
-        import logging
 
-        return logging.getLogger(__name__)
+#    def _get_logger(self):
+#        """Возвращает логгер."""
+#        import logging
+#        return logging.getLogger(__name__)

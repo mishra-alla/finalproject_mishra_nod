@@ -8,7 +8,7 @@
 - Регистрироваться и управлять виртуальным портфелем валют
 - Совершать сделки по покупке/продаже валют
 - Отслеживать актуальные курсы в реальном времени
-- Работать как с фиатными (USD, EUR, GBP, RUB, JPY), так и с криптовалютами (BTC, ETH, LTC, ADA)
+- Работать как с фиатными (USD, EUR, RUB), так и с криптовалютами (BTC, ETH)
 
 ### Результат:
 Полноценное консольное приложение, имитирующее работу валютного кошелька, которое можно установить и запустить как самостоятельный пакет (полноценный Python-пакет).
@@ -48,15 +48,16 @@ finalproject_mishra_nod/
 ├── data/
 │   ├── users.json              # JSON - пользователи
 │   ├── portfolios.json         # JSON - портфели
-│   ├── rates.json              # Текущие курсы от API
+│   ├── rates.json              # Текущие курсы
 │   └── exchange_rates.json     # Исторические данные
 ├── valutatrade_hub/
-│   ├── parser_service/         # парсер валют
+│   ├── parser_service/         # Парсер валют
 │   │   ├── __init__.py
-│   │   ├── config.py           # Конфигурация с dataclass
-│   │   ├── api_clients.py      # CoinGecko и ExchangeRate-API
-│   │   ├── storage.py           # Хранение исторических данных 
-│   │   └── updater.py          # Основной модуль обновления
+│   │   ├── config.py           # Конфигурация с Dataclass, ParserConfig
+│   │   ├── api_clients.py      # BaseApiClient + наследники
+│   │   ├── storage.py          # Хранение исторических данных
+│   │   ├── updater.py          # RatesUpdater
+│   │   └── scheduler.py        #  Планировщик
 │   ├── core/
 │   │   ├── currencies.py       # Иерархия валют
 │   │   ├── exceptions.py       # Пользовательские исключения
@@ -75,8 +76,6 @@ finalproject_mishra_nod/
 ├── pyproject.toml              # Настройка Poetry
 ├── README.md                   # Документация
 ├── .gitignore                  # Игнорирование ненужных файлов
-├── valutatrade.log             # Файл логов
-├── poetry.lock                 # Фиксация версий
 └── data/                       # НЕ в коммите (.gitignore)
     ├── *.json                  # Генерируются при работе
 ```
@@ -84,10 +83,10 @@ finalproject_mishra_nod/
 ## Поддерживаемые валюты
 
 ### Фиатные валюты
-USD (базовая), EUR, GBP, RUB, JPY
+USD (базовая), EUR, RUB
 
 ### Криптовалюты
-BTC (Bitcoin), ETH (Ethereum), LTC (Litecoin), ADA (Cardano)
+BTC (Bitcoin), ETH (Ethereum)
 
 ## Команды
 
@@ -129,9 +128,11 @@ buy --currency BTC --amount 0.05
 get-rate --from USD --to BTC
 show-portfolio
 buy --currency USD --amount 200
-buy --currency EUR --amount 500
+update-rates --source exchangerate
+update-rates
+show-rates --top 10
+buy --currency RUB --amount 500
 show-portfolio --base USD
-Запись сеанса работы
 ```
 
 ## Автор
